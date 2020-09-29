@@ -303,7 +303,7 @@ namespace Secs4Net
 			this.ConnectionChanged = null;
 			if (this.State == ConnectionState.Selected)
 			{
-				this.SendControlMessage(MessageType.SeperateRequest, this.GetNewSystemId());
+				this.SendControlMessage(MessageType.SeparateRequest, this.GetNewSystemId());
 			}
 
 			this.Reset();
@@ -449,7 +449,7 @@ namespace Secs4Net
 					this.SendControlMessage(MessageType.LinkTestResponse, systemBytes);
 					break;
 
-				case MessageType.SeperateRequest:
+				case MessageType.SeparateRequest:
 					this.CommunicationStateChanging(ConnectionState.Retry);
 					break;
 			}
@@ -540,7 +540,7 @@ namespace Secs4Net
 		private void SendControlMessage(MessageType messageType, int systemBytes)
 		{
 			var token = new TaskCompletionSourceToken(controlMessage, systemBytes, messageType);
-			if (((byte)messageType & 1) == 1 && messageType != MessageType.SeperateRequest)
+			if (((byte)messageType & 1) == 1 && messageType != MessageType.SeparateRequest)
 			{
 				this.replyExpectedMessages.Add(token);
 			}

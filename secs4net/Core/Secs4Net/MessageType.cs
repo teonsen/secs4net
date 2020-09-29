@@ -10,6 +10,6 @@
 		LinkTestRequest = 0b0000_0101,
 		LinkTestResponse = 0b0000_0110,
 		//Reject_req        = 0b0000_0111,
-		SeperateRequest = 0b0000_1001
+		SeparateRequest = 0b0000_1001
 	}
 }
