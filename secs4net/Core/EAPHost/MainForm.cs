@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
 using System.Messaging;
@@ -30,6 +31,12 @@ namespace Cim.Eap
     {
         class SecsLogger : ISecsGemLogger
         {
+            private HostMainForm _form;
+            public SecsLogger(HostMainForm f)
+            {
+                _form = f;
+            }
+
             public void MessageIn(SecsMessage msg, int systembyte)
             {
                 EapLogger.Info(new SecsMessageLogInfo
@@ -68,6 +75,11 @@ namespace Cim.Eap
             public void Debug(string msg)
             {
                 EapLogger.Debug("SECS/GEM Error: " + msg);
+            }
+
+            public void ResetTheConnection()
+            {
+                _form.RestartGem();
             }
         }
 
@@ -125,6 +137,11 @@ namespace Cim.Eap
         #region UI Action
         void menuItemGemEnable_Click(object sender, EventArgs e)
         {
+            EnableGem();
+        }
+
+        private void EnableGem()
+        {
             EapLogger.Info("SECS/GEM Start");
             gemStatusLabel.Text = "Start";
             _secsGem?.Dispose();
@@ -140,7 +157,7 @@ namespace Cim.Eap
                 T6 = EAPConfig.Instance.T6,
                 T7 = EAPConfig.Instance.T7,
                 T8 = EAPConfig.Instance.T8,
-                Logger = new SecsLogger()
+                Logger = new SecsLogger(this)
             };
             _secsGem.ConnectionChanged += delegate
             {
@@ -160,6 +177,12 @@ namespace Cim.Eap
             menuItemGemEnable.Enabled = false;
         }
 
+        internal void RestartGem()
+        {
+            DisableGem();
+            EnableGem();
+        }
+
         private async void PrimaryMsgHandler(object sender, PrimaryMessageWrapper e)
         {
             try
@@ -176,9 +199,15 @@ namespace Cim.Eap
 
         void menuItemGemDisable_Click(object sender, EventArgs e)
         {
+            DisableGem();
+        }
+
+        private void DisableGem()
+        {
             if (_secsGem != null)
             {
                 EapLogger.Info("SECS/GEM Stop");
+                _secsGem.Cancel();
                 _secsGem.Dispose();
                 _secsGem = null;
             }

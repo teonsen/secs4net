@@ -20,5 +20,10 @@ namespace Secs4Net
 		public void Warning(string message) => Trace.TraceWarning(message);
 
 		public void Error(string message, Exception exception = null) => Trace.TraceError($"{message}{Environment.NewLine}{exception}");
+
+		public void ResetTheConnection()
+		{
+
+		}
 	}
 }

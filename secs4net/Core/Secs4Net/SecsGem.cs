@@ -55,6 +55,9 @@ namespace Secs4Net
 
 		private Socket socket;
 
+		private CancellationTokenSource _cts = new CancellationTokenSource();
+		public void Cancel() => _cts?.Cancel();
+
 		/// <summary>
 		/// <para xml:lang="en">Initializes a <see langword="new"/> instance of the <see cref="SecsGem"/> <see langword="class"/>.</para>
 		/// </summary>
@@ -75,6 +78,7 @@ namespace Secs4Net
 			this.Port = port;
 			this.IsActive = isActive;
 			this.DecoderBufferSize = initialReceiveBufferSize;
+			this._cts = new CancellationTokenSource();
 
 			#region Timer Action
 			this.timer7 = new Timer(delegate
@@ -102,9 +106,11 @@ namespace Secs4Net
 			{
 				this.startImplementationFunction = async () =>
 				{
+					CancellationToken ct = _cts.Token;
 					var connected = false;
 					do
 					{
+						ct.ThrowIfCancellationRequested();
 						if (this.IsDisposed)
 						{
 							return;
@@ -133,6 +139,12 @@ namespace Secs4Net
 							this.logger.Info($"Start T5 Timer: {this.T5 / 1000} sec.");
 							await Task.Delay(this.T5).ConfigureAwait(false);
 						}
+						if (ct.IsCancellationRequested)
+						{
+							this.logger.Warning("CancellationRequested.");
+							ct.ThrowIfCancellationRequested();
+						}
+						await Task.Delay(3000);
 					} while (!connected);
 
 					// hook receive event first, because no message will received before 'SelectRequest' send to device
@@ -148,6 +160,7 @@ namespace Secs4Net
 
 				this.startImplementationFunction = async () =>
 				{
+					CancellationToken ct = _cts.Token;
 					var connected = false;
 					do
 					{
@@ -177,6 +190,12 @@ namespace Secs4Net
 							this.logger.Error(ex.Message, ex);
 							await Task.Delay(2000).ConfigureAwait(false);
 						}
+						if (ct.IsCancellationRequested)
+						{
+							this.logger.Warning("CancellationRequested.");
+							ct.ThrowIfCancellationRequested();
+						}
+						await Task.Delay(3000);
 					} while (!connected);
 
 					this.StartSocketReceive();
@@ -321,7 +340,7 @@ namespace Secs4Net
 		/// <returns>secondary message</returns>
 		public Task<SecsMessage> SendAsync(SecsMessage secsMessage) => this.SendDataMessageAsync(secsMessage, this.GetNewSystemId());
 
-		public void Start() => Task.Run(this.startImplementationFunction);
+		public void Start() => Task.Run(this.startImplementationFunction, _cts.Token);
 
 		internal int GetNewSystemId() => this.systemByteGenerator.New();
 
@@ -389,8 +408,9 @@ namespace Secs4Net
 						return;
 					}
 
-					this.Reset();
-					Task.Run(this.startImplementationFunction);
+					//this.Reset();
+					//Task.Run(this.startImplementationFunction);
+					this.logger.ResetTheConnection();
 					break;
 			}
 		}
@@ -450,6 +470,7 @@ namespace Secs4Net
 					break;
 
 				case MessageType.SeparateRequest:
+					this.logger.ResetTheConnection();
 					this.CommunicationStateChanging(ConnectionState.Retry);
 					break;
 			}
@@ -556,14 +577,21 @@ namespace Secs4Net
 					systemBytes: systemBytes
 				).EncodeTo(new byte[10]))
 			};
-
-			socketAsyncEventArgs.UserToken = token;
-
-			socketAsyncEventArgs.Completed += this.SendControlMessageCompleteHandler;
-
-			if (!this.socket.SendAsync(socketAsyncEventArgs))
+			if (this.socket != null)
 			{
-				this.SendControlMessageCompleteHandler(this.socket, socketAsyncEventArgs);
+				socketAsyncEventArgs.UserToken = token;
+
+				socketAsyncEventArgs.Completed += this.SendControlMessageCompleteHandler;
+
+				if (!this.socket.SendAsync(socketAsyncEventArgs))
+				{
+					this.SendControlMessageCompleteHandler(this.socket, socketAsyncEventArgs);
+				}
+			}
+			else
+			{
+				this.logger.Error("the socket is null.");
+				this.logger.ResetTheConnection();
 			}
 		}
 
@@ -695,14 +723,22 @@ namespace Secs4Net
 		{
 			this.CommunicationStateChanging(ConnectionState.Connected);
 
-			var receiveCompleteEvent = this.socketAsyncEventArgsPool.Lend();
-
-			receiveCompleteEvent.SetBuffer(this.secsDecoder.Buffer, this.secsDecoder.BufferOffset, this.secsDecoder.BufferCount);
-			receiveCompleteEvent.Completed += this.SocketReceiveEventCompleted;
-
-			if (!this.socket.ReceiveAsync(receiveCompleteEvent))
+			if (this.socket != null)
 			{
-				this.SocketReceiveEventCompleted(this.socket, receiveCompleteEvent);
+				var receiveCompleteEvent = this.socketAsyncEventArgsPool.Lend();
+
+				receiveCompleteEvent.SetBuffer(this.secsDecoder.Buffer, this.secsDecoder.BufferOffset, this.secsDecoder.BufferCount);
+				receiveCompleteEvent.Completed += this.SocketReceiveEventCompleted;
+
+				if (!this.socket.ReceiveAsync(receiveCompleteEvent))
+				{
+					this.SocketReceiveEventCompleted(this.socket, receiveCompleteEvent);
+				}
+			}
+			else
+			{
+				this.logger.Error("the socket is null.");
+				this.logger.ResetTheConnection();
 			}
 		}
 

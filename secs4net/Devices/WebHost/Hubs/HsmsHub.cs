@@ -138,6 +138,9 @@ namespace HsmsWebHost.Hubs
             public void MessageIn(SecsMessage msg, int systembyte) => _client.SendAsync("MessageIn", $"<< [0x{systembyte:X8}] {msg.ToSml()}");
 			public void MessageOut(SecsMessage msg, int systembyte) => _client.SendAsync("MessageOut", $">> [0x{systembyte:X8}] {msg.ToSml()}\n");
             public void Warning(string msg) => _client.SendAsync("Warning", msg);
-        }
+			public void ResetTheConnection()
+			{
+			}
+		}
     }
 }

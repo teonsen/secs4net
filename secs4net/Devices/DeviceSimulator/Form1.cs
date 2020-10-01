@@ -174,6 +174,10 @@ namespace SecsDevice
                     _form.richTextBox1.AppendText($"{msg}\n");
                 });
             }
+
+            public void ResetTheConnection()
+            {
+            }
         }
     }
 }

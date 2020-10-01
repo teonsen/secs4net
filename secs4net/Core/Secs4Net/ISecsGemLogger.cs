@@ -15,5 +15,7 @@ namespace Secs4Net
 		void Warning(string message);
 
 		void Error(string message, Exception exception = null);
+
+		void ResetTheConnection();
 	}
 }
